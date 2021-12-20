@@ -1,3 +1,4 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
 from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
@@ -12,12 +13,11 @@ from ordersapp.forms import OrderItemForm
 from ordersapp.models import Order, OrderItem
 
 
-class OrderList(ListView):
+class OrderList(LoginRequiredMixin, ListView):
     model = Order
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
-
 
 class OrderItemsCreate(CreateView):
     model = Order
@@ -82,10 +82,12 @@ class OrderItemsUpdate(UpdateView):
     def get_context_data(self, **kwargs):
         data = super(OrderItemsUpdate, self).get_context_data(**kwargs)
         OrderFormSet = inlineformset_factory(Order, OrderItem, form=OrderItemForm, extra=1)
+
         if self.request.POST:
             data["orderitems"] = OrderFormSet(self.request.POST, instance=self.object)
         else:
-            formset = OrderFormSet(instance=self.object)
+            queryset = self.object.orderitems.select_related()
+            formset = OrderFormSet(instance=self.object, queryset=queryset)
             for form in formset.forms:
                 if form.instance.pk:
                     form.initial["price"] = form.instance.product.price
@@ -107,7 +109,6 @@ class OrderItemsUpdate(UpdateView):
             self.object.delete()
 
         return super(OrderItemsUpdate, self).form_valid(form)
-
 
 class OrderDelete(DeleteView):
     model = Order
