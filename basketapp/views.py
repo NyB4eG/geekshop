@@ -26,9 +26,14 @@ def basket_add(request, pk):
 
     if not basket:
         basket = Basket(user=request.user, product=product)
+        basket.quantity += 1
+    else:
+        basket.quantity = F("quantity") + 1
 
-    basket.quantity += 1
     basket.save()
+
+    update_queries = list(filter(lambda x: "UPDATE" in x["sql"], connection.queries))
+    print(f"query basket_add: {update_queries}")
 
     return HttpResponseRedirect(request.META.get("HTTP_REFERER"))
 
@@ -64,3 +69,7 @@ def basket_edit(request, pk, quantity):
         result = render_to_string("basketapp/includes/inc_basket_list.html", content)
 
         return JsonResponse({"result": result})
+
+
+from django.db import connection
+from django.db.models import F
